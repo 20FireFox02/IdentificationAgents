@@ -1,138 +1,50 @@
 #include "authorization_agent.hpp"
 #include "keynodes/identification_keynodes.hpp"
 
+
 ScAddr AuthorizationAgent::GetActionClass() const
 {
     return IdentificationKeynodes::action_authorization;
 }
 
+ScAddr AuthorizationAgent::GetEventSubscriptionElement() const
+{
+    return ScKeynodes::action_initiated;
+}
+
+ScTemplate AuthorizationAgent::GetInitiationConditionTemplate(ScActionInitiatedEvent const & event) const
+{
+  ScTemplate templ;
+  templ.Triple(GetActionClass(), ScType::VarPermPosArc, event.GetOtherElement());
+  return templ;
+}
+
 ScResult AuthorizationAgent::DoProgram(ScAction & action)
 {
-    std::string input_login_str, input_password_str, exist_login_str, exist_password_str;
+    std::string input_login_str, input_password_str;
 
     auto const & [input_login, input_password] = action.GetArguments<2>();
 
-    if (!m_context.IsElement(input_login))
-    {
-        SC_AGENT_LOG_ERROR("Login is not specified.");
-        return action.FinishWithError();
-    }
+    SC_AGENT_LOG_INFO("Login input check.");
+    if (!m_context.ElementCheck("AuthorizationAgent", input_login)) return action.FinishWithError();
+    if (!m_context.EmptyCheck("AuthorizationAgent", input_login, &input_login_str)) return action.FinishWithError();
+    if (!m_context.SpaceCheck("AuthorizationAgent", input_login_str)) return action.FinishWithError();
+    if (!m_context.SizeCheck("AuthorizationAgent", input_login_str)) return action.FinishWithError();
 
-    if (!m_context.GetLinkContent(input_login, input_login_str))
-    {
-        SC_AGENT_LOG_ERROR("Login field is empty.");
-        return action.FinishWithError();
-    }
+    SC_AGENT_LOG_INFO("Password input check.");
+    if (!m_context.ElementCheck("AuthorizationAgent", input_password)) return action.FinishWithError();
+    if (!m_context.EmptyCheck("AuthorizationAgent", input_password, &input_password_str)) return action.FinishWithError();
+    if (!m_context.SpaceCheck("AuthorizationAgent", input_password_str)) return action.FinishWithError();
+    if (!m_context.SizeCheck("AuthorizationAgent", input_password_str)) return action.FinishWithError();
 
-    if (!AuthorizationAgent::SpaceCheck(input_login_str)) return action.FinishWithError();
-
-
-    if (!m_context.IsElement(input_password))
-    {
-        SC_AGENT_LOG_ERROR("Password is not specified.");
-        return action.FinishWithError();
-    }
-
-    if (!m_context.GetLinkContent(input_password, input_password_str))
-    {
-        SC_AGENT_LOG_ERROR("Password field is empty.");
-        return action.FinishWithError();
-    }
-
-    if (!AuthorizationAgent::SpaceCheck(input_password_str)) return action.FinishWithError();
-
-    if (!AuthorizationAgent::SizeCheck(input_password_str)) return action.FinishWithError();
-
-    ScIterator3Ptr const it3 = m_context.CreateIterator3(
-        IdentificationKeynodes::login,
-        ScType::ConstPermPosArc,
-        ScType::ConstNodeLink
-    );
-
-    while (it3->Next())
-    {
-    	SC_AGENT_LOG_INFO("User search.");
-        m_context.GetLinkContent(it3->Get(2), exist_login_str);
-        if (exist_login_str == input_login_str)
-        {
-            SC_AGENT_LOG_INFO("Login is founded.");
-            ScIterator5Ptr const it5 = m_context.CreateIterator5(
-                it3->Get(2),
-                ScType::ConstCommonArc,
-                ScType::ConstNodeLink,
-                ScType::ConstPermPosArc,
-                IdentificationKeynodes::nrel_password
-            );
-            it5->Next();
-            SC_AGENT_LOG_INFO("Password check.");
-            m_context.GetLinkContent(it5->Get(2), exist_password_str);
-            if (exist_password_str == input_password_str)
-            {
-                SC_AGENT_LOG_INFO("Password is correct.");
-                                       
-                action.SetResult(AuthorizationAgent::GetUser(it3->Get(2)));
-
-                SC_AGENT_LOG_INFO("Wellcome.");
-                return action.FinishSuccessfully();
-            }
-            else
-            {
-                SC_AGENT_LOG_ERROR("Password is wrong.");
-                return action.FinishWithError();
-            }
-            /*while (it5->Next())
-            {
-            	SC_AGENT_LOG_INFO("Password check.");
-                m_context.GetLinkContent(it5->Get(2), exist_password_str);
-            	if (exist_password_str == input_password_str)
-            	{
-            	    SC_AGENT_LOG_INFO("Password is correct.");
-                                        
-                    action.SetResult(AuthorizationAgent::GetUser(it3->Get(2)));
-
-                    SC_AGENT_LOG_INFO("Wellcome.");
-             	    return action.FinishSuccessfully();
-            	}
-            	else
-            	{
-            	    SC_AGENT_LOG_ERROR("Password is wrong.");
-            	    return action.FinishWithError();
-            	}
-            }*/
-        }
-    }
-    SC_AGENT_LOG_ERROR("Uncorrect input of login or password.");
-    return action.FinishWithError();
+    return (AuthorizationAgent::UserSearch(action, input_login_str, input_password_str)) ? action.FinishSuccessfully() : action.FinishWithError();
 }
 
-bool AuthorizationAgent::SpaceCheck(std::string & str)
+bool AuthorizationAgent::UserSearch(ScAction & action, std::string & input_login, std::string & input_password)
 {
-    SC_AGENT_LOG_INFO("Space check.");
-    for (char i : str)
-    {
-        if (i == ' ')
-        {
-            SC_AGENT_LOG_ERROR("Space cannot be entered.");
-            return false;
-        }
-    }
-    return true;
-}
-bool AuthorizationAgent::SizeCheck(std::string & str)
-{
-    SC_AGENT_LOG_INFO("Size check.");
-    if (str.size() < 8)
-    {
-        SC_AGENT_LOG_ERROR("String size should be no less than 8 symbols.");
-        return false;
-    }
-    return true;
-}
+    SC_AGENT_LOG_INFO("User search.");
 
-/*ScAddr AuthorizationAgent::UserSearch(std::string input_login, std::string input_password)
-{
     std::string exist_login, exist_password;
-
     ScIterator3Ptr const it3 = m_context.CreateIterator3(
         IdentificationKeynodes::login,
         ScType::ConstPermPosArc,
@@ -141,41 +53,48 @@ bool AuthorizationAgent::SizeCheck(std::string & str)
 
     while (it3->Next())
     {
-    	SC_AGENT_LOG_INFO("User search.");
         m_context.GetLinkContent(it3->Get(2), exist_login);
         if (exist_login == input_login)
         {
-            SC_AGENT_LOG_INFO("Login is founded.");
-            ScIterator5Ptr const it5 = m_context.CreateIterator5(
-                it3->Get(2),
-                ScType::ConstCommonArc,
-                ScType::ConstNodeLink,
-                ScType::ConstPermPosArc,
-                IdentificationKeynodes::nrel_password
-            );
-            it5->Next();
-            SC_AGENT_LOG_INFO("Password check.");
-            m_context.GetLinkContent(it5->Get(2), exist_password_str);
+            SC_AGENT_LOG_INFO("User " + input_login + " found.");
+            m_context.GetLinkContent(AuthorizationAgent::GetPassword(it3->Get(2)), exist_password);
             if (exist_password == input_password)
             {
                 SC_AGENT_LOG_INFO("Password is correct.");
-                                       
-                SC_AGENT_LOG_INFO("Wellcome.");
-                return AuthorizationAgent::GetUser(it3->Get(2));
+                action.SetResult(AuthorizationAgent::GetUser(it3->Get(2)));
+                SC_AGENT_LOG_INFO(input_login + ". Wellcome.");
+                return true;
             }
             else
             {
                 SC_AGENT_LOG_ERROR("Password is wrong.");
-                return action.FinishWithError();
+                return false;
             }
         }
     }
-    return ScA
-}*/
+    SC_AGENT_LOG_ERROR("Uncorrect login.");
+    return false;
+}
+
+ScAddr AuthorizationAgent::GetPassword(ScAddr user_login)
+{
+    SC_AGENT_LOG_INFO("Get password.");
+
+    ScIterator5Ptr const it5 = m_context.CreateIterator5(
+        user_login,
+        ScType::ConstCommonArc,
+        ScType::ConstNodeLink,
+        ScType::ConstPermPosArc,
+        IdentificationKeynodes::nrel_password
+    );
+    it5->Next();
+    return it5->Get(2);
+}
 
 ScAddr AuthorizationAgent::GetUser(ScAddr user_login)
 {
     SC_AGENT_LOG_INFO("Get user.");
+    
     ScIterator5Ptr const it5 = m_context.CreateIterator5(
         ScType::ConstNode,
         ScType::ConstCommonArc,
