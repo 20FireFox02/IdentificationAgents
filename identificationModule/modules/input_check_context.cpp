@@ -30,7 +30,7 @@ bool InputCheckContex::SpaceCheck(std::string active_agent, std::string & str) {
 bool InputCheckContex::SizeCheck(std::string active_agent, std::string & str) {
     SC_LOG_INFO(active_agent<<": "<<"Size check");
     if (str.size() < 8) {
-        SC_LOG_ERROR(active_agent<<":"<<"String size cannot be less than 8 symbols.");
+        SC_LOG_ERROR(active_agent<<": "<<"String size cannot be less than 8 symbols.");
         return false;
      }
      return true;
