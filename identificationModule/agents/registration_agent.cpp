@@ -49,7 +49,7 @@ bool RegistrationAgent::UserSearch(std::string & input_login)
 
     std::string exist_login;
     ScIterator3Ptr const it3 = m_context.CreateIterator3(
-        IdentificationKeynodes::login,
+        IdentificationKeynodes::concept_login,
         ScType::ConstPermPosArc,
         ScType::ConstNodeLink
     );
@@ -73,9 +73,9 @@ ScAddr RegistrationAgent::UserCreation(std::string & input_login_str, ScAddr inp
     ScAddr const & new_user = m_context.GenerateNode(ScType::ConstNode);
     m_context.SetElementSystemIdentifier(input_login_str, new_user);
 
-    m_context.GenerateConnector(ScType::ConstPermPosArc, IdentificationKeynodes::user, new_user);
-    m_context.GenerateConnector(ScType::ConstPermPosArc, IdentificationKeynodes::login, input_login);
-    m_context.GenerateConnector(ScType::ConstPermPosArc, IdentificationKeynodes::password, input_password);
+    m_context.GenerateConnector(ScType::ConstPermPosArc, IdentificationKeynodes::concept_user, new_user);
+    m_context.GenerateConnector(ScType::ConstPermPosArc, IdentificationKeynodes::concept_login, input_login);
+    m_context.GenerateConnector(ScType::ConstPermPosArc, IdentificationKeynodes::concept_password, input_password);
 
     ScAddr const & password_arcAddr = m_context.GenerateConnector(ScType::ConstCommonArc, input_login, input_password);
     m_context.GenerateConnector(ScType::ConstPermPosArc, IdentificationKeynodes::nrel_password, password_arcAddr);
@@ -83,6 +83,12 @@ ScAddr RegistrationAgent::UserCreation(std::string & input_login_str, ScAddr inp
     ScAddr const & login_arcAddr = m_context.GenerateConnector(ScType::ConstCommonArc, new_user, input_login);
     m_context.GenerateConnector(ScType::ConstPermPosArc, IdentificationKeynodes::nrel_login, login_arcAddr);
 
+    std::string get_login;
+    m_context.GetLinkContent(input_login, get_login);
+    ScAddr const & idtf_Addr = m_context.GenerateLink(ScType::ConstNodeLink);
+    m_context.SetLinkContent(idtf_Addr, get_login);
+    ScAddr const & idtf_arcAddr = m_context.GenerateConnector(ScType::ConstCommonArc, new_user, idtf_Addr);
+    m_context.GenerateConnector(ScType::ConstPermPosArc, IdentificationKeynodes::nrel_user_idtf, idtf_arcAddr);
     SC_AGENT_LOG_INFO("User " + input_login_str + " created.");
     return new_user;
 }

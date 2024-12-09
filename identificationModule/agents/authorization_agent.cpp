@@ -46,7 +46,7 @@ bool AuthorizationAgent::UserSearch(ScAction & action, std::string & input_login
 
     std::string exist_login, exist_password;
     ScIterator3Ptr const it3 = m_context.CreateIterator3(
-        IdentificationKeynodes::login,
+        IdentificationKeynodes::concept_login,
         ScType::ConstPermPosArc,
         ScType::ConstNodeLink
     );
